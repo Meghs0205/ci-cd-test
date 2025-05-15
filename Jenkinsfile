@@ -2,27 +2,37 @@ pipeline {
     agent any
 
     environment {
-        VENV = "venv"
-        PORT = "5000"
+        VENV = "${WORKSPACE}/venv"
+        LOG_FILE = "${WORKSPACE}/flask.log"
+        PID_FILE = "${WORKSPACE}/flask.pid"
     }
 
     stages {
-        stage('Set Up Python & Flask') {
+        stage('Install Flask & Setup venv') {
             steps {
                 sh '''
-                    python3 -m venv ${VENV}
-                    . ${VENV}/bin/activate
+                    python3 -m venv venv
+                    . venv/bin/activate
                     pip install --upgrade pip
                     pip install flask
                 '''
             }
         }
 
-        stage('Stop Previous Flask App') {
+        stage('Stop Old App If Running') {
             steps {
                 sh '''
                     if [ -f flask.pid ]; then
-                        echo "[INFO] Killing previous Flask process..."
+                        echo "[INFO] Stopping old Flask app..."
                         kill -9 $(cat flask.pid) || true
                         rm flask.pid
                     fi
+                '''
+            }
+        }
+
+        stage('Start Flask App in Background') {
+            steps {
+                sh '''
+                    . venv/bin/activate
+                    nohup python3 app
