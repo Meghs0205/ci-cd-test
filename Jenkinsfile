@@ -2,15 +2,15 @@ pipeline {
     agent any
 
     environment {
-        VENV = "${WORKSPACE}/venv"
+        VENV = "venv"
+        PORT = "5000"
     }
 
     stages {
-        stage('Set Up Python Environment') {
+        stage('Setup Python & Flask') {
             steps {
                 sh '''
-                    sudo apt-get update
-                    sudo apt-get install -y screen
+                    echo "[INFO] Setting up virtual environment..."
                     python3 -m venv ${VENV}
                     . ${VENV}/bin/activate
                     pip install --upgrade pip
@@ -19,30 +19,35 @@ pipeline {
             }
         }
 
-        stage('Kill Existing Flask App') {
+        stage('Stop Existing Flask App') {
             steps {
                 sh '''
-                    if screen -list | grep -q flaskapp; then
-                        screen -S flaskapp -X quit
+                    echo "[INFO] Stopping previous Flask process if exists..."
+                    if [ -f flask.pid ]; then
+                        kill -9 $(cat flask.pid) || true
+                        rm flask.pid
                     fi
                 '''
             }
         }
 
-        stage('Run Flask App in Screen') {
+        stage('Run Flask App in Background') {
             steps {
                 sh '''
+                    echo "[INFO] Starting Flask app on 0.0.0.0:${PORT}"
                     . ${VENV}/bin/activate
-                    screen -dmS flaskapp bash -c 'python3 app.py'
+                    nohup python3 app.py > flask.log 2>&1 &
+                    echo $! > flask.pid
                 '''
             }
         }
 
-        stage('Verify Running') {
+        stage('Verify Internal Access') {
             steps {
                 sh '''
                     sleep 3
-                    curl -s http://localhost:5000 || echo "App may not be reachable"
+                    echo "[INFO] Testing app on localhost:${PORT}"
+                    curl -s http://localhost:${PORT} || echo "[WARN] App not responding yet"
                 '''
             }
         }
