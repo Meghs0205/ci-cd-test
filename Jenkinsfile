@@ -2,15 +2,15 @@ pipeline {
     agent any
 
     environment {
-        VENV = "venv"
-        PORT = "5000"
+        VENV = "${WORKSPACE}/venv"
     }
 
     stages {
-        stage('Setup Python & Flask') {
+        stage('Set Up Python Environment') {
             steps {
                 sh '''
-                    echo "[INFO] Setting up virtual environment..."
+                    sudo apt-get update
+                    sudo apt-get install -y screen
                     python3 -m venv ${VENV}
                     . ${VENV}/bin/activate
                     pip install --upgrade pip
@@ -19,35 +19,30 @@ pipeline {
             }
         }
 
-        stage('Stop Existing Flask App') {
+        stage('Kill Existing Flask App') {
             steps {
                 sh '''
-                    echo "[INFO] Stopping previous Flask process if exists..."
-                    if [ -f flask.pid ]; then
-                        kill -9 $(cat flask.pid) || true
-                        rm flask.pid
+                    if screen -list | grep -q flaskapp; then
+                        screen -S flaskapp -X quit
                     fi
                 '''
             }
         }
 
-        stage('Run Flask App in Background') {
+        stage('Run Flask App in Screen') {
             steps {
                 sh '''
-                    echo "[INFO] Starting Flask app on 0.0.0.0:${PORT}"
                     . ${VENV}/bin/activate
-                    nohup python3 app.py > flask.log 2>&1 &
-                    echo $! > flask.pid
+                    screen -dmS flaskapp bash -c 'python3 app.py'
                 '''
             }
         }
 
-        stage('Verify Internal Access') {
+        stage('Verify Running') {
             steps {
                 sh '''
                     sleep 3
-                    echo "[INFO] Testing app on localhost:${PORT}"
-                    curl -s http://localhost:${PORT} || echo "[WARN] App not responding yet"
+                    curl -s http://localhost:5000 || echo "App may not be reachable"
                 '''
             }
         }
