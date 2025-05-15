@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         VENV = "venv"
-        EC2_PUBLIC_IP = "54.183.124.173"  // Replace with your actual public IP if needed
+        EC2_PUBLIC_IP = "54.183.124.173"  // Replace with your actual public IP
     }
 
     stages {
@@ -40,7 +40,6 @@ pipeline {
                     . ${VENV}/bin/activate
                     nohup python3 app.py --host=0.0.0.0 --port=5000 > flask.log 2>&1 &
                     echo $! > flask.pid
-                    disown
                 '''
             }
         }
