@@ -2,15 +2,15 @@ pipeline {
     agent any
 
     environment {
-        VENV = "${WORKSPACE}/venv"
+        VENV = "venv"
+        PORT = "5000"
     }
 
     stages {
-        stage('Install Dependencies') {
+        stage('Setup Python & Flask') {
             steps {
                 sh '''
-                    sudo apt-get update
-                    sudo apt-get install -y screen
+                    echo "[INFO] Setting up virtual environment..."
                     python3 -m venv ${VENV}
                     . ${VENV}/bin/activate
                     pip install --upgrade pip
@@ -19,30 +19,35 @@ pipeline {
             }
         }
 
-        stage('Stop Old App If Running') {
+        stage('Stop Existing Flask App') {
             steps {
                 sh '''
-                    if screen -list | grep -q flaskapp; then
-                        screen -S flaskapp -X quit
+                    echo "[INFO] Stopping previous Flask process if exists..."
+                    if [ -f flask.pid ]; then
+                        kill -9 $(cat flask.pid) || true
+                        rm flask.pid
                     fi
                 '''
             }
         }
 
-        stage('Start Flask App') {
+        stage('Run Flask App in Background') {
             steps {
                 sh '''
+                    echo "[INFO] Starting Flask app on 0.0.0.0:${PORT}"
                     . ${VENV}/bin/activate
-                    screen -dmS flaskapp bash -c 'python3 app.py'
+                    nohup python3 app.py > flask.log 2>&1 &
+                    echo $! > flask.pid
                 '''
             }
         }
 
-        stage('Check If Running') {
+        stage('Verify Internal Access') {
             steps {
                 sh '''
-                    sleep 5
-                    curl -s http://localhost:5000 || echo "Flask app may not be responding yet."
+                    sleep 3
+                    echo "[INFO] Testing app on localhost:${PORT}"
+                    curl -s http://localhost:${PORT} || echo "[WARN] App not responding yet"
                 '''
             }
         }
