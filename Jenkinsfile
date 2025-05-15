@@ -2,28 +2,28 @@ pipeline {
     agent any
 
     environment {
-        VENV = "${WORKSPACE}/venv"
-        LOG_FILE = "${WORKSPACE}/flask.log"
-        PID_FILE = "${WORKSPACE}/flask.pid"
+        VENV = "venv"
+        PORT = "5000"
     }
 
     stages {
-        stage('Install Flask & Setup venv') {
+        stage('Setup Python & Flask') {
             steps {
                 sh '''
-                    python3 -m venv venv
-                    . venv/bin/activate
+                    echo "[INFO] Setting up virtual environment..."
+                    python3 -m venv ${VENV}
+                    . ${VENV}/bin/activate
                     pip install --upgrade pip
                     pip install flask
                 '''
             }
         }
 
-        stage('Stop Old App If Running') {
+        stage('Stop Existing Flask App') {
             steps {
                 sh '''
+                    echo "[INFO] Stopping previous Flask process if exists..."
                     if [ -f flask.pid ]; then
-                        echo "[INFO] Stopping old Flask app..."
                         kill -9 $(cat flask.pid) || true
                         rm flask.pid
                     fi
@@ -31,8 +31,25 @@ pipeline {
             }
         }
 
-        stage('Start Flask App in Background') {
+        stage('Run Flask App in Background') {
             steps {
                 sh '''
-                    . venv/bin/activate
-                    nohup python3 app
+                    echo "[INFO] Starting Flask app on 0.0.0.0:${PORT}"
+                    . ${VENV}/bin/activate
+                    nohup python3 app.py > flask.log 2>&1 &
+                    echo $! > flask.pid
+                '''
+            }
+        }
+
+        stage('Verify Internal Access') {
+            steps {
+                sh '''
+                    sleep 3
+                    echo "[INFO] Testing app on localhost:${PORT}"
+                    curl -s http://localhost:${PORT} || echo "[WARN] App not responding yet"
+                '''
+            }
+        }
+    }
+}
