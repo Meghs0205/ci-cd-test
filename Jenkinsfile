@@ -36,5 +36,20 @@ pipeline {
                 sh '''
                     echo "[INFO] Launching Flask app on 0.0.0.0:${PORT}..."
                     . ${VENV}/bin/activate
-                    nohup python3 app.py > flask.log 2>&1 &
-                    echo $
+                    nohup python3 app.py --host=0.0.0.0 --port=${PORT} > flask.log 2>&1 &
+                    echo $! > flask.pid
+                '''
+            }
+        }
+
+        stage('Wait & Verify Internal Access') {
+            steps {
+                sh '''
+                    sleep 3
+                    echo "[INFO] Verifying app from inside EC2..."
+                    curl -s http://localhost:${PORT} || echo "[WARN] App not responding yet"
+                '''
+            }
+        }
+    }
+}
