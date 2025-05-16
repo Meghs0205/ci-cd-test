@@ -1,7 +1,8 @@
 pipeline {
     agent any
+
     stages {
-        stage('Setup Python') {
+        stage('Setup Python Env') {
             steps {
                 sh '''
                     python3 -m venv venv
@@ -11,19 +12,11 @@ pipeline {
                 '''
             }
         }
-        stage('Kill Old Flask') {
+
+        stage('Restart Flask Service') {
             steps {
                 sh '''
-                    pkill -f 'python3 app.py' || true
-                '''
-            }
-        }
-        stage('Run Flask App') {
-            steps {
-                sh '''
-                    . venv/bin/activate
-                    # Use setsid to detach fully
-                    setsid python3 app.py > flask.log 2>&1 < /dev/null &
+                    sudo systemctl restart flaskapp
                 '''
             }
         }
