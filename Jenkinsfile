@@ -1,53 +1,29 @@
 pipeline {
     agent any
-
-    environment {
-        VENV = "venv"
-        PORT = "5000"
-    }
-
     stages {
-        stage('Setup Python & Flask') {
+        stage('Setup Python') {
             steps {
                 sh '''
-                    echo "[INFO] Setting up virtual environment..."
-                    python3 -m venv ${VENV}
-                    . ${VENV}/bin/activate
+                    python3 -m venv venv
+                    . venv/bin/activate
                     pip install --upgrade pip
                     pip install flask
                 '''
             }
         }
-
-        stage('Stop Existing Flask App') {
+        stage('Kill Old Flask') {
             steps {
                 sh '''
-                    echo "[INFO] Stopping previous Flask process if exists..."
-                    if [ -f flask.pid ]; then
-                        kill -9 $(cat flask.pid) || true
-                        rm flask.pid
-                    fi
+                    pkill -f 'python3 app.py' || true
                 '''
             }
         }
-
-        stage('Run Flask App in Background') {
+        stage('Run Flask App') {
             steps {
                 sh '''
-                    echo "[INFO] Starting Flask app on 0.0.0.0:${PORT}"
-                    . ${VENV}/bin/activate
-                    nohup python3 app.py > flask.log 2>&1 &
-                    echo $! > flask.pid
-                '''
-            }
-        }
-
-        stage('Verify Internal Access') {
-            steps {
-                sh '''
-                    sleep 3
-                    echo "[INFO] Testing app on localhost:${PORT}"
-                    curl -s http://localhost:${PORT} || echo "[WARN] App not responding yet"
+                    . venv/bin/activate
+                    # Use setsid to detach fully
+                    setsid python3 app.py > flask.log 2>&1 < /dev/null &
                 '''
             }
         }
