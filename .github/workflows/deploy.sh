@@ -1,9 +1,14 @@
 #!/bin/bash
 
+# Stop and remove existing container
 docker stop flask-cicd-demo || true
 docker rm flask-cicd-demo || true
 
-echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "meghs0205" --password-stdin
+# Re-authenticate and pull the latest image
+echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${GITHUB_USER}" --password-stdin
 
-docker pull ghcr.io/meghs0205/ci-cd-test:latest
-docker run -d -p 5000:5000 --name flask-cicd-demo ghcr.io/meghs0205/ci-cd-test:latest
+# Pull the latest image explicitly
+docker pull ghcr.io/${GITHUB_USER}/ci-cd-test:latest
+
+# Run updated container
+docker run --pull always -d -p 5000:5000 --name flask-cicd-demo ghcr.io/${GITHUB_USER}/ci-cd-test:latest
